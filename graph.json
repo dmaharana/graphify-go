@@ -1,0 +1,264 @@
+{
+  "nodes": [
+    {
+      "id": "cmd/root.go",
+      "type": "file",
+      "name": "root.go"
+    },
+    {
+      "id": "cmd/root.go:Execute",
+      "type": "function",
+      "name": "Execute",
+      "file_path": "cmd/root.go",
+      "line": 16
+    },
+    {
+      "id": "cmd/root.go:init",
+      "type": "function",
+      "name": "init",
+      "file_path": "cmd/root.go",
+      "line": 23
+    },
+    {
+      "id": "cmd/scan.go",
+      "type": "file",
+      "name": "scan.go"
+    },
+    {
+      "id": "cmd/scan.go:init",
+      "type": "function",
+      "name": "init",
+      "file_path": "cmd/scan.go",
+      "line": 42
+    },
+    {
+      "id": "main.go",
+      "type": "file",
+      "name": "main.go"
+    },
+    {
+      "id": "main.go:main",
+      "type": "function",
+      "name": "main",
+      "file_path": "main.go",
+      "line": 7
+    },
+    {
+      "id": "pkg/graph/graph.go",
+      "type": "file",
+      "name": "graph.go"
+    },
+    {
+      "id": "pkg/graph/graph.go:NodeType",
+      "type": "struct",
+      "name": "NodeType",
+      "file_path": "pkg/graph/graph.go",
+      "line": 8
+    },
+    {
+      "id": "pkg/graph/graph.go:Node",
+      "type": "struct",
+      "name": "Node",
+      "file_path": "pkg/graph/graph.go",
+      "line": 17
+    },
+    {
+      "id": "pkg/graph/graph.go:Edge",
+      "type": "struct",
+      "name": "Edge",
+      "file_path": "pkg/graph/graph.go",
+      "line": 26
+    },
+    {
+      "id": "pkg/graph/graph.go:Graph",
+      "type": "struct",
+      "name": "Graph",
+      "file_path": "pkg/graph/graph.go",
+      "line": 32
+    },
+    {
+      "id": "pkg/graph/graph.go:NewGraph",
+      "type": "function",
+      "name": "NewGraph",
+      "file_path": "pkg/graph/graph.go",
+      "line": 37
+    },
+    {
+      "id": "pkg/graph/graph.go:AddNode",
+      "type": "function",
+      "name": "AddNode",
+      "file_path": "pkg/graph/graph.go",
+      "line": 44
+    },
+    {
+      "id": "pkg/graph/graph.go:AddEdge",
+      "type": "function",
+      "name": "AddEdge",
+      "file_path": "pkg/graph/graph.go",
+      "line": 48
+    },
+    {
+      "id": "pkg/graph/graph.go:Save",
+      "type": "function",
+      "name": "Save",
+      "file_path": "pkg/graph/graph.go",
+      "line": 52
+    },
+    {
+      "id": "pkg/parser/parser.go",
+      "type": "file",
+      "name": "parser.go"
+    },
+    {
+      "id": "pkg/parser/parser.go:ParseFile",
+      "type": "function",
+      "name": "ParseFile",
+      "file_path": "pkg/parser/parser.go",
+      "line": 15
+    },
+    {
+      "id": "pkg/parser/parser.go:walk",
+      "type": "function",
+      "name": "walk",
+      "file_path": "pkg/parser/parser.go",
+      "line": 51
+    },
+    {
+      "id": "pkg/scanner/scanner.go",
+      "type": "file",
+      "name": "scanner.go"
+    },
+    {
+      "id": "pkg/scanner/scanner.go:Scanner",
+      "type": "struct",
+      "name": "Scanner",
+      "file_path": "pkg/scanner/scanner.go",
+      "line": 11
+    },
+    {
+      "id": "pkg/scanner/scanner.go:NewScanner",
+      "type": "function",
+      "name": "NewScanner",
+      "file_path": "pkg/scanner/scanner.go",
+      "line": 15
+    },
+    {
+      "id": "pkg/scanner/scanner.go:Scan",
+      "type": "function",
+      "name": "Scan",
+      "file_path": "pkg/scanner/scanner.go",
+      "line": 19
+    },
+    {
+      "id": "pkg/scanner/scanner.go:isIgnored",
+      "type": "function",
+      "name": "isIgnored",
+      "file_path": "pkg/scanner/scanner.go",
+      "line": 68
+    },
+    {
+      "id": "pkg/scanner/scanner.go:isSupported",
+      "type": "function",
+      "name": "isSupported",
+      "file_path": "pkg/scanner/scanner.go",
+      "line": 82
+    }
+  ],
+  "edges": [
+    {
+      "from": "cmd/root.go",
+      "to": "cmd/root.go:Execute",
+      "type": "contains"
+    },
+    {
+      "from": "cmd/root.go",
+      "to": "cmd/root.go:init",
+      "type": "contains"
+    },
+    {
+      "from": "cmd/scan.go",
+      "to": "cmd/scan.go:init",
+      "type": "contains"
+    },
+    {
+      "from": "main.go",
+      "to": "main.go:main",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:NodeType",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:Node",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:Edge",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:Graph",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:NewGraph",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:AddNode",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:AddEdge",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/graph/graph.go",
+      "to": "pkg/graph/graph.go:Save",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/parser/parser.go",
+      "to": "pkg/parser/parser.go:ParseFile",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/parser/parser.go",
+      "to": "pkg/parser/parser.go:walk",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/scanner/scanner.go",
+      "to": "pkg/scanner/scanner.go:Scanner",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/scanner/scanner.go",
+      "to": "pkg/scanner/scanner.go:NewScanner",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/scanner/scanner.go",
+      "to": "pkg/scanner/scanner.go:Scan",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/scanner/scanner.go",
+      "to": "pkg/scanner/scanner.go:isIgnored",
+      "type": "contains"
+    },
+    {
+      "from": "pkg/scanner/scanner.go",
+      "to": "pkg/scanner/scanner.go:isSupported",
+      "type": "contains"
+    }
+  ]
+}

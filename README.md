@@ -20,7 +20,13 @@ Scan your codebase:
 ```bash
 ./graphify-go scan .
 ```
-This generates a `graph.json` file in the current directory.
+This generates a `graph.json` file.
+
+Query the architecture:
+```bash
+./graphify-go query "how does the scanner work?" --graph graph.json
+```
+The query command extracts a relevant subgraph and formats it in Markdown, perfect for providing context to an AI assistant.
 
 ## Extending
 To add support for more languages (e.g., Python):
