@@ -23,7 +23,15 @@ func resolveGraphPath(explicit string) string {
 var queryCmd = &cobra.Command{
 	Use:   "query [question]",
 	Short: "Query the graph to extract a relevant subgraph",
-	Args:  cobra.ExactArgs(1),
+	Long: `Query the architecture graph using plain-language keywords.
+It extracts a focused 1-hop subgraph around relevant seed concepts and formats the output
+in clean GitHub-flavored Markdown, optimized for AI assistant context windows.`,
+	Example: `  # Query using default graphify-out/graph.json
+  graphify-go query "how does the scanner handle ignores?"
+
+  # Query an explicit graph JSON file
+  graphify-go query "database connection pooling" --graph /path/to/graph.json`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		question := args[0]
 		targetPath := resolveGraphPath(queryGraphPath)

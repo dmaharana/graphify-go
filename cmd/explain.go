@@ -13,7 +13,19 @@ var explainGraphPath string
 var explainCmd = &cobra.Command{
 	Use:   "explain [symbol]",
 	Short: "Explain a code symbol, its community, and incoming/outgoing connections",
-	Args:  cobra.ExactArgs(1),
+	Long: `Inspect a specific code symbol to understand its architectural role.
+
+Displays:
+  - Node metadata: Symbol name, type (struct, function, method, interface), and source location.
+  - Community assignment: Architectural subsystem cluster.
+  - Degree centrality: Total count of incoming callers and outgoing dependencies.
+  - Directional connections: Incoming callers and outgoing targets labeled with confidence tags ([EXTRACTED] or [INFERRED]).`,
+	Example: `  # Explain by symbol name
+  graphify-go explain "Scanner"
+
+  # Explain with exact node identifier
+  graphify-go explain "pkg/scanner/scanner.go:Scanner"`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		symbol := args[0]
 		targetPath := resolveGraphPath(explainGraphPath)

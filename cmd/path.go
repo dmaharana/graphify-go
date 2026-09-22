@@ -14,7 +14,15 @@ var pathGraphPath string
 var pathCmd = &cobra.Command{
 	Use:   "path [source] [target]",
 	Short: "Find the shortest architectural path between two symbols",
-	Args:  cobra.ExactArgs(2),
+	Long: `Find the shortest call, dependency, or containment path between two symbols.
+Uses breadth-first search (BFS) over the architecture knowledge graph to reveal how
+two concepts interact across file, module, or community boundaries.`,
+	Example: `  # Find path between two symbols by name
+  graphify-go path "ScanWithManifest" "NewResolver"
+
+  # Find path using node IDs
+  graphify-go path "cmd/scan.go:scanCmd" "pkg/scanner/manifest.go:Manifest"`,
+	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		from := args[0]
 		to := args[1]

@@ -2,251 +2,274 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Graphify-Go Knowledge Graph</title>
+  <title>Graphify-Go - Knowledge Graph</title>
+  <script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; height: 100vh; overflow: hidden; }
-    #canvas-container { flex: 1; position: relative; }
-    canvas { width: 100%; height: 100%; display: block; }
-    #sidebar { width: 320px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; z-index: 10; }
+    #graph { flex: 1; height: 100vh; position: relative; background: #0f0f1a; }
+    #sidebar { width: 300px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; z-index: 10; }
     #header { padding: 14px; border-bottom: 1px solid #2a2a4e; background: #141426; }
-    #header h1 { font-size: 16px; color: #64B5F6; font-weight: 600; }
-    #header p { font-size: 11px; color: #888; margin-top: 4px; }
-    #search-wrap { padding: 10px 14px; border-bottom: 1px solid #2a2a4e; }
+    #header h1 { font-size: 15px; color: #64B5F6; font-weight: 600; }
+    #stats { font-size: 11px; color: #888; margin-top: 4px; }
+    #search-wrap { padding: 10px 14px; border-bottom: 1px solid #2a2a4e; position: relative; }
     #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 8px 10px; border-radius: 6px; font-size: 13px; outline: none; }
     #search:focus { border-color: #64B5F6; }
-    #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; max-height: 240px; overflow-y: auto; }
-    #info-panel h3 { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
-    .prop { margin-bottom: 6px; font-size: 12px; }
-    .prop b { color: #aaa; }
+    #search-results { position: absolute; left: 14px; right: 14px; top: 48px; background: #1a1a2e; border: 1px solid #3a3a5e; border-radius: 6px; max-height: 180px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    .search-item { padding: 6px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #252540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .search-item:hover { background: #2a2a4e; color: #fff; }
+    #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; max-height: 260px; overflow-y: auto; }
+    #info-panel h3 { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
+    .field { margin-bottom: 6px; font-size: 12px; }
+    .field b { color: #e0e0e0; }
+    .empty { color: #666; font-style: italic; }
+    .neighbor-link { display: block; padding: 3px 6px; margin: 3px 0; border-radius: 3px; cursor: pointer; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #555; background: #131324; }
+    .neighbor-link:hover { background: #2a2a4e; }
     #legend-wrap { flex: 1; overflow-y: auto; padding: 14px; }
-    #legend-wrap h3 { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 10px; }
+    #legend-wrap h3 { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 8px; }
+    #legend-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: #aaa; }
     .legend-item { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 4px; font-size: 12px; cursor: pointer; }
     .legend-item:hover { background: #2a2a4e; }
+    .legend-item.dimmed { opacity: 0.35; }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .legend-count { color: #777; font-size: 11px; }
   </style>
 </head>
 <body>
-  <div id="canvas-container">
-    <canvas id="graphCanvas"></canvas>
-  </div>
+  <div id="graph"></div>
   <div id="sidebar">
     <div id="header">
       <h1>Graphify-Go Knowledge Graph</h1>
-      <p id="stats">Loading architecture graph...</p>
+      <div id="stats">{{STATS}}</div>
     </div>
     <div id="search-wrap">
-      <input type="text" id="search" placeholder="Search symbols or files...">
+      <input id="search" type="text" placeholder="Search symbols or files..." autocomplete="off">
+      <div id="search-results"></div>
     </div>
     <div id="info-panel">
       <h3>Symbol Inspector</h3>
-      <div id="info-content" style="font-size: 12px; color: #777; font-style: italic;">Click a node to view connections.</div>
+      <div id="info-content"><span class="empty">Click a node to inspect it</span></div>
     </div>
     <div id="legend-wrap">
       <h3>Communities</h3>
-      <div id="legend-list"></div>
+      <div id="legend-controls">
+        <label><input type="checkbox" id="select-all-cb" checked> Select All</label>
+      </div>
+      <div id="legend"></div>
     </div>
   </div>
 
-  <script id="graph-data" type="application/json">
-{{GRAPH_DATA}}
-  </script>
+  <script id="nodes-data" type="application/json">{{NODES_JSON}}</script>
+  <script id="edges-data" type="application/json">{{EDGES_JSON}}</script>
+  <script id="legend-data" type="application/json">{{LEGEND_JSON}}</script>
 
   <script>
-    const COLORS = ["#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F", "#EDC948", "#B07AA1", "#FF9DA7", "#9C755F", "#BAB0AC"];
-    const data = JSON.parse(document.getElementById('graph-data').textContent);
+    const RAW_NODES = JSON.parse(document.getElementById('nodes-data').textContent);
+    const RAW_EDGES = JSON.parse(document.getElementById('edges-data').textContent);
+    const LEGEND = JSON.parse(document.getElementById('legend-data').textContent);
 
-    const canvas = document.getElementById('graphCanvas');
-    const ctx = canvas.getContext('2d');
-    let width, height;
-
-    function resize() {
-      width = canvas.parentElement.clientWidth;
-      height = canvas.parentElement.clientHeight;
-      canvas.width = width * window.devicePixelRatio;
-      canvas.height = height * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    function esc(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
-    window.addEventListener('resize', resize);
-    resize();
 
-    document.getElementById('stats').textContent = `${data.nodes.length} nodes · ${data.edges.length} relationships`;
+    const container = document.getElementById('graph');
 
-    // Process nodes
-    const nodeMap = new Map();
-    const commCount = new Map();
-    data.nodes.forEach((n, i) => {
-      n.x = (Math.random() - 0.5) * 600 + width / 2;
-      n.y = (Math.random() - 0.5) * 600 + height / 2;
-      n.vx = 0;
-      n.vy = 0;
-      n.radius = n.type === 'file' ? 6 : (n.type === 'struct' || n.type === 'interface' ? 5 : 4);
-      n.color = COLORS[(n.community || 1) % COLORS.length];
-      nodeMap.set(n.id, n);
-      commCount.set(n.community || 1, (commCount.get(n.community || 1) || 0) + 1);
-    });
-
-    // Populate legend
-    const legendList = document.getElementById('legend-list');
-    commCount.forEach((count, comm) => {
-      const item = document.createElement('div');
-      item.className = 'legend-item';
-      item.innerHTML = `<span class="legend-dot" style="background:${COLORS[comm % COLORS.length]}"></span><span>Community ${comm} (${count})</span>`;
-      legendList.appendChild(item);
-    });
-
-    // Camera
-    let panX = 0, panY = 0, zoom = 1.0;
-    let isDragging = false, startX, startY;
-    let selectedNode = null;
-    let searchTerm = "";
-
-    canvas.addEventListener('mousedown', e => {
-      startX = e.clientX - panX;
-      startY = e.clientY - panY;
-      isDragging = true;
-
-      // Check node click
-      const mouseX = (e.clientX - panX) / zoom;
-      const mouseY = (e.clientY - panY) / zoom;
-      let clicked = null;
-      for (const n of data.nodes) {
-        const dx = n.x - mouseX, dy = n.y - mouseY;
-        if (dx * dx + dy * dy < (n.radius + 4) * (n.radius + 4)) {
-          clicked = n;
-          break;
-        }
-      }
-      if (clicked) {
-        selectedNode = clicked;
-        showInspector(clicked);
-      }
-    });
-
-    window.addEventListener('mousemove', e => {
-      if (isDragging) {
-        panX = e.clientX - startX;
-        panY = e.clientY - startY;
-      }
-    });
-
-    window.addEventListener('mouseup', () => isDragging = false);
-
-    canvas.addEventListener('wheel', e => {
-      e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
-      zoom = Math.max(0.2, Math.min(4, zoom * factor));
-    });
-
-    document.getElementById('search').addEventListener('input', e => {
-      searchTerm = e.target.value.toLowerCase().trim();
-    });
-
-    function showInspector(node) {
-      const incoming = data.edges.filter(e => e.to === node.id);
-      const outgoing = data.edges.filter(e => e.from === node.id);
-      let html = `
-        <div class="prop"><b>Name:</b> ${node.name}</div>
-        <div class="prop"><b>Type:</b> <code style="color:#64B5F6">${node.type}</code></div>
-        <div class="prop"><b>Community:</b> ${node.community || 'None'}</div>
-        <div class="prop"><b>File:</b> ${node.file_path || '-'}</div>
-        <div class="prop" style="margin-top:8px"><b>Incoming (${incoming.length}):</b></div>
+    if (typeof vis === 'undefined') {
+      // Offline fallback: render via SVG/Canvas
+      container.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #888;">
+          <h2>Interactive Graph View</h2>
+          <p style="margin-top: 10px;">vis-network script could not be loaded from CDN.</p>
+          <p style="margin-top: 6px;">Connect to the internet or open locally with CDN access to view the interactive physics graph.</p>
+          <p style="margin-top: 20px; font-size: 13px; color: #64B5F6;">Total nodes: ${RAW_NODES.length} | Relationships: ${RAW_EDGES.length}</p>
+        </div>
       `;
-      incoming.slice(0, 5).forEach(e => {
-        html += `<div style="font-size:11px;color:#aaa">← ${e.from} [${e.type}]</div>`;
-      });
-      html += `<div class="prop" style="margin-top:8px"><b>Outgoing (${outgoing.length}):</b></div>`;
-      outgoing.slice(0, 5).forEach(e => {
-        html += `<div style="font-size:11px;color:#aaa">→ ${e.to} [${e.type}]</div>`;
-      });
-      document.getElementById('info-content').innerHTML = html;
-    }
+    } else {
+      // Build vis datasets
+      const nodesDS = new vis.DataSet(RAW_NODES.map((n, i) => ({
+        id: n.id,
+        label: n.label,
+        color: n.color,
+        size: n.size || 12,
+        font: n.font || { size: 12, color: '#ffffff' },
+        title: n.title || n.label,
+        x: 35 * Math.sqrt(i + 1) * Math.cos(i * 2.4),
+        y: 35 * Math.sqrt(i + 1) * Math.sin(i * 2.4),
+        _community: n.community,
+        _community_name: n.community_name,
+        _source_file: n.source_file,
+        _file_type: n.file_type,
+        _degree: n.degree,
+      })));
 
-    // Force simulation step
-    function step() {
-      for (let i = 0; i < data.nodes.length; i++) {
-        for (let j = i + 1; j < data.nodes.length; j++) {
-          const a = data.nodes[i], b = data.nodes[j];
-          const dx = b.x - a.x, dy = b.y - a.y;
-          const distSq = dx * dx + dy * dy || 1;
-          if (distSq < 15000) {
-            const force = 120 / distSq;
-            a.vx -= dx * force;
-            a.vy -= dy * force;
-            b.vx += dx * force;
-            b.vy += dy * force;
-          }
-        }
+      const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({
+        id: i,
+        from: e.from,
+        to: e.to,
+        label: e.label || '',
+        title: e.title || '',
+        dashes: e.dashes || false,
+        width: e.width || 1,
+        color: e.color || { color: '#3a3a5e' },
+        arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+      })));
+
+      const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, {
+        physics: {
+          enabled: true,
+          solver: 'forceAtlas2Based',
+          forceAtlas2Based: {
+            gravitationalConstant: -70,
+            centralGravity: 0.008,
+            springLength: 100,
+            springConstant: 0.08,
+            damping: 0.45,
+            avoidOverlap: 0.8,
+          },
+          stabilization: { iterations: 150, fit: true },
+        },
+        interaction: {
+          hover: true,
+          tooltipDelay: 100,
+          hideEdgesOnDrag: true,
+          navigationButtons: false,
+          keyboard: false,
+        },
+        nodes: { shape: 'dot', borderWidth: 1.5 },
+        edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 2.5 },
+      });
+
+      network.once('stabilizationIterationsDone', () => {
+        network.setOptions({ physics: { enabled: false } });
+      });
+
+      function showInfo(nodeId) {
+        const n = nodesDS.get(nodeId);
+        if (!n) return;
+        const neighborIds = network.getConnectedNodes(nodeId);
+        const neighborItems = neighborIds.map(nid => {
+          const nb = nodesDS.get(nid);
+          const color = nb ? (nb.color.background || '#64B5F6') : '#555';
+          return `<span class="neighbor-link" style="border-left-color:${esc(color)}" data-nid="${esc(nid)}">${esc(nb ? nb.label : nid)}</span>`;
+        }).join('');
+
+        document.getElementById('info-content').innerHTML = `
+          <div class="field"><b>${esc(n.label)}</b></div>
+          <div class="field">Type: <code style="color:#64B5F6">${esc(n._file_type || 'unknown')}</code></div>
+          <div class="field">Community: ${esc(n._community_name || 'Community ' + n._community)}</div>
+          <div class="field">Source: <span style="font-size:11px;color:#aaa">${esc(n._source_file || '-')}</span></div>
+          <div class="field">Degree: ${n._degree}</div>
+          ${neighborIds.length ? `<div class="field" style="margin-top:10px;color:#aaa;font-size:11px">Connected Neighbors (${neighborIds.length})</div><div>${neighborItems}</div>` : ''}
+        `;
       }
 
-      data.edges.forEach(e => {
-        const u = nodeMap.get(e.from), v = nodeMap.get(e.to);
-        if (u && v) {
-          const dx = v.x - u.x, dy = v.y - u.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = (dist - 40) * 0.005;
-          u.vx += dx * force;
-          u.vy += dy * force;
-          v.vx -= dx * force;
-          v.vy -= dy * force;
+      function focusNode(nodeId) {
+        network.focus(nodeId, { scale: 1.5, animation: true });
+        network.selectNodes([nodeId]);
+        showInfo(nodeId);
+      }
+
+      document.addEventListener('click', e => {
+        const el = e.target.closest('.neighbor-link');
+        if (el && el.dataset.nid !== undefined) {
+          focusNode(el.dataset.nid);
         }
       });
 
-      data.nodes.forEach(n => {
-        n.vx *= 0.85;
-        n.vy *= 0.85;
-        n.x += n.vx;
-        n.y += n.vy;
+      network.on('click', params => {
+        if (params.nodes.length > 0) {
+          showInfo(params.nodes[0]);
+        } else {
+          document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+        }
+      });
+
+      // Search
+      const searchInput = document.getElementById('search');
+      const searchResults = document.getElementById('search-results');
+
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase().trim();
+        searchResults.innerHTML = '';
+        if (!q) { searchResults.style.display = 'none'; return; }
+        const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)).slice(0, 15);
+        if (!matches.length) { searchResults.style.display = 'none'; return; }
+        searchResults.style.display = 'block';
+        matches.forEach(n => {
+          const el = document.createElement('div');
+          el.className = 'search-item';
+          el.textContent = n.label;
+          el.style.borderLeft = `3px solid ${n.color.background}`;
+          el.onclick = () => {
+            focusNode(n.id);
+            searchResults.style.display = 'none';
+            searchInput.value = '';
+          };
+          searchResults.appendChild(el);
+        });
+      });
+
+      document.addEventListener('click', e => {
+        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+          searchResults.style.display = 'none';
+        }
+      });
+
+      // Legend & Communities
+      const hiddenCommunities = new Set();
+      const selectAllCb = document.getElementById('select-all-cb');
+
+      selectAllCb.addEventListener('change', () => {
+        const hide = !selectAllCb.checked;
+        document.querySelectorAll('.legend-item').forEach(item => {
+          hide ? item.classList.add('dimmed') : item.classList.remove('dimmed');
+        });
+        document.querySelectorAll('.legend-cb').forEach(cb => {
+          cb.checked = !hide;
+        });
+        LEGEND.forEach(c => {
+          if (hide) hiddenCommunities.add(c.cid); else hiddenCommunities.delete(c.cid);
+        });
+        const updates = RAW_NODES.map(n => ({ id: n.id, hidden: hide }));
+        nodesDS.update(updates);
+      });
+
+      const legendEl = document.getElementById('legend');
+      LEGEND.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'legend-cb';
+        cb.checked = true;
+        cb.addEventListener('change', (e) => {
+          e.stopPropagation();
+          if (cb.checked) {
+            hiddenCommunities.delete(c.cid);
+            item.classList.remove('dimmed');
+          } else {
+            hiddenCommunities.add(c.cid);
+            item.classList.add('dimmed');
+          }
+          const updates = RAW_NODES
+            .filter(n => n.community === c.cid)
+            .map(n => ({ id: n.id, hidden: !cb.checked }));
+          nodesDS.update(updates);
+          selectAllCb.checked = hiddenCommunities.size === 0;
+        });
+        item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
+          <span class="legend-label">${esc(c.label)}</span>
+          <span class="legend-count">${c.count}</span>`;
+        item.prepend(cb);
+        item.onclick = (e) => {
+          if (e.target === cb) return;
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        };
+        legendEl.appendChild(item);
       });
     }
-
-    // Render loop
-    function draw() {
-      step();
-      ctx.clearRect(0, 0, width, height);
-
-      ctx.save();
-      ctx.translate(panX, panY);
-      ctx.scale(zoom, zoom);
-
-      // Edges
-      ctx.lineWidth = 0.8;
-      data.edges.forEach(e => {
-        const u = nodeMap.get(e.from), v = nodeMap.get(e.to);
-        if (u && v) {
-          ctx.strokeStyle = (selectedNode && (u === selectedNode || v === selectedNode)) ? '#64B5F6' : '#2a2a4e';
-          ctx.beginPath();
-          ctx.moveTo(u.x, u.y);
-          ctx.lineTo(v.x, v.y);
-          ctx.stroke();
-        }
-      });
-
-      // Nodes
-      data.nodes.forEach(n => {
-        const match = searchTerm && n.name.toLowerCase().includes(searchTerm);
-        ctx.fillStyle = match ? '#FFD54F' : n.color;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, match ? n.radius + 3 : n.radius, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (n === selectedNode) {
-          ctx.strokeStyle = '#FFFFFF';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-
-        if (zoom > 1.2 || match || n === selectedNode || n.type === 'file') {
-          ctx.fillStyle = '#ccc';
-          ctx.font = '9px sans-serif';
-          ctx.fillText(n.name, n.x + n.radius + 2, n.y + 3);
-        }
-      });
-
-      ctx.restore();
-      requestAnimationFrame(draw);
-    }
-    draw();
   </script>
 </body>
 </html>

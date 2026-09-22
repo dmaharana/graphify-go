@@ -13,7 +13,15 @@ var affectedGraphPath string
 var affectedCmd = &cobra.Command{
 	Use:   "affected [file|symbol]",
 	Short: "Determine the blast radius of upstream callers/dependents for a file or symbol",
-	Args:  cobra.ExactArgs(1),
+	Long: `Determine the transitive blast radius for a given file or code symbol.
+Performs reverse-dependency graph traversal across calls, references, embeds, and imports
+to reveal every upstream symbol that could be impacted if the target file or symbol is modified.`,
+	Example: `  # Blast radius for a source file
+  graphify-go affected "pkg/scanner/scanner.go"
+
+  # Blast radius for a function or method symbol
+  graphify-go affected "NewScanner"`,
+	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		target := args[0]
 		targetPath := resolveGraphPath(affectedGraphPath)
