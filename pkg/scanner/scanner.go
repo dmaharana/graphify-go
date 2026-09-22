@@ -3,86 +3,100 @@ package scanner
 import (
 	"graphify-go/pkg/graph"
 	"graphify-go/pkg/parser"
+	"graphify-go/pkg/resolver"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 type Scanner struct {
-	RootDir string
+	Roots         []string
+	IgnoreMatcher *IgnoreMatcher
+	Manifest      *Manifest
 }
 
-func NewScanner(rootDir string) *Scanner {
-	return &Scanner{RootDir: rootDir}
+func NewScanner(roots ...string) *Scanner {
+	if len(roots) == 0 {
+		roots = []string{"."}
+	}
+	return &Scanner{
+		Roots:         roots,
+		IgnoreMatcher: NewIgnoreMatcher(),
+		Manifest:      NewManifest(),
+	}
+}
+
+func (s *Scanner) LoadIgnores(baseDir string) {
+	_ = s.IgnoreMatcher.LoadFile(filepath.Join(baseDir, ".gitignore"))
+	_ = s.IgnoreMatcher.LoadFile(filepath.Join(baseDir, ".graphifyignore"))
 }
 
 func (s *Scanner) Scan() (*graph.Graph, error) {
-	g := graph.NewGraph()
-	
-	err := filepath.Walk(s.RootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			if s.isIgnored(path) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if s.isIgnored(path) {
-			return nil
-		}
-
-		// Process file
-		if isSupported(path) {
-			fileNodes, fileEdges, err := parser.ParseFile(path)
-			if err != nil {
-				return nil
-			}
-			
-			// Add file node
-			fileID := path
-			g.AddNode(graph.Node{
-				ID:   fileID,
-				Type: graph.FileNode,
-				Name: filepath.Base(path),
-			})
-
-			for _, n := range fileNodes {
-				g.AddNode(n)
-				g.AddEdge(fileID, n.ID, "contains")
-			}
-			for _, e := range fileEdges {
-				g.AddEdge(e.From, e.To, e.Type)
-			}
-		}
-
-		return nil
-	})
-
+	g, _, err := s.ScanWithManifest("")
 	return g, err
 }
 
-func (s *Scanner) isIgnored(path string) bool {
-	base := filepath.Base(path)
-	if strings.HasPrefix(base, ".") && base != "." {
-		return true
+func (s *Scanner) ScanWithManifest(manifestPath string) (*graph.Graph, *Manifest, error) {
+	var oldManifest *Manifest
+	if manifestPath != "" {
+		oldManifest, _ = LoadManifest(manifestPath)
 	}
-	ignored := []string{"node_modules", "vendor", "dist", "build", "target"}
-	for _, i := range ignored {
-		if strings.Contains(path, i) {
-			return true
+
+	newManifest := NewManifest()
+	r := resolver.NewResolver()
+
+	for _, root := range s.Roots {
+		s.LoadIgnores(root)
+
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			relPath := filepath.ToSlash(path)
+
+			if info.IsDir() {
+				if s.IgnoreMatcher.IsIgnored(relPath, true) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			if s.IgnoreMatcher.IsIgnored(relPath, false) {
+				return nil
+			}
+
+			if isSupported(path) {
+				entry, err := ComputeFileEntry(path)
+				if err == nil {
+					newManifest.Entries[relPath] = entry
+				}
+
+				// Check if file is unchanged from old manifest
+				// (For full resolution we still need symbols; in future we can cache AST json)
+				_ = oldManifest
+
+				res, err := parser.ParseFile(relPath)
+				if err == nil {
+					r.AddParseResult(res)
+				}
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return nil, nil, err
 		}
 	}
-	return false
+
+	s.Manifest = newManifest
+	return r.Resolve(), newManifest, nil
 }
 
 func isSupported(path string) bool {
 	ext := filepath.Ext(path)
 	switch ext {
-	case ".go", ".js", ".ts", ".py", ".java", ".c", ".cpp", ".h":
+	case ".go", ".js", ".ts", ".jsx", ".tsx":
 		return true
 	}
 	return false

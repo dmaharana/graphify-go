@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"graphify-go/pkg/graph"
 	"os"
@@ -9,7 +8,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var graphPath string
+var queryGraphPath string
+
+func resolveGraphPath(explicit string) string {
+	if explicit != "" {
+		return explicit
+	}
+	if _, err := os.Stat("graphify-out/graph.json"); err == nil {
+		return "graphify-out/graph.json"
+	}
+	return "graph.json"
+}
 
 var queryCmd = &cobra.Command{
 	Use:   "query [question]",
@@ -17,26 +26,20 @@ var queryCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		question := args[0]
-		
-		data, err := os.ReadFile(graphPath)
-		if err != nil {
-			fmt.Printf("Error reading graph: %v\n", err)
-			os.Exit(1)
-		}
+		targetPath := resolveGraphPath(queryGraphPath)
 
-		var g graph.Graph
-		if err := json.Unmarshal(data, &g); err != nil {
-			fmt.Printf("Error parsing graph: %v\n", err)
+		g, err := graph.LoadGraph(targetPath)
+		if err != nil {
+			fmt.Printf("Error reading graph from %s: %v\n", targetPath, err)
 			os.Exit(1)
 		}
 
 		subgraph := g.Query(question)
-		
 		fmt.Println(subgraph.ToMarkdown())
 	},
 }
 
 func init() {
-	queryCmd.Flags().StringVarP(&graphPath, "graph", "g", "graph.json", "Path to the graph JSON file")
+	queryCmd.Flags().StringVarP(&queryGraphPath, "graph", "g", "", "Path to the graph JSON file (defaults to graphify-out/graph.json)")
 	rootCmd.AddCommand(queryCmd)
 }
