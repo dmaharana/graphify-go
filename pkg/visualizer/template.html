@@ -3,48 +3,342 @@
 <head>
   <meta charset="UTF-8">
   <title>Graphify-Go - Knowledge Graph</title>
-  <script src="https://unpkg.com/vis-network@9.1.6/standalone/umd/vis-network.min.js"></script>
+  <script>{{VIS_NETWORK_JS}}</script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0f0f1a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; height: 100vh; overflow: hidden; }
-    #graph { flex: 1; height: 100vh; position: relative; background: #0f0f1a; }
-    #sidebar { width: 300px; background: #1a1a2e; border-left: 1px solid #2a2a4e; display: flex; flex-direction: column; overflow: hidden; z-index: 10; }
-    #header { padding: 14px; border-bottom: 1px solid #2a2a4e; background: #141426; }
-    #header h1 { font-size: 15px; color: #64B5F6; font-weight: 600; }
-    #stats { font-size: 11px; color: #888; margin-top: 4px; }
-    #search-wrap { padding: 10px 14px; border-bottom: 1px solid #2a2a4e; position: relative; }
-    #search { width: 100%; background: #0f0f1a; border: 1px solid #3a3a5e; color: #e0e0e0; padding: 8px 10px; border-radius: 6px; font-size: 13px; outline: none; }
-    #search:focus { border-color: #64B5F6; }
-    #search-results { position: absolute; left: 14px; right: 14px; top: 48px; background: #1a1a2e; border: 1px solid #3a3a5e; border-radius: 6px; max-height: 180px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
-    .search-item { padding: 6px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid #252540; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .search-item:hover { background: #2a2a4e; color: #fff; }
-    #info-panel { padding: 14px; border-bottom: 1px solid #2a2a4e; max-height: 260px; overflow-y: auto; }
-    #info-panel h3 { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em; }
-    .field { margin-bottom: 6px; font-size: 12px; }
-    .field b { color: #e0e0e0; }
-    .empty { color: #666; font-style: italic; }
-    .neighbor-link { display: block; padding: 3px 6px; margin: 3px 0; border-radius: 3px; cursor: pointer; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid #555; background: #131324; }
-    .neighbor-link:hover { background: #2a2a4e; }
-    #legend-wrap { flex: 1; overflow-y: auto; padding: 14px; }
-    #legend-wrap h3 { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 8px; }
-    #legend-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: #aaa; }
-    .legend-item { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 4px; font-size: 12px; cursor: pointer; }
-    .legend-item:hover { background: #2a2a4e; }
-    .legend-item.dimmed { opacity: 0.35; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .legend-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .legend-count { color: #777; font-size: 11px; }
+    :root {
+      --bg: #0f0f1a;
+      --sidebar-bg: #1a1a2e;
+      --header-bg: #141426;
+      --border: #2a2a4e;
+      --border-focus: #64B5F6;
+      --text: #e0e0e0;
+      --text-muted: #888888;
+      --card-bg: #131324;
+      --hover-bg: #2a2a4e;
+      --accent: #64B5F6;
+      --banner-bg: #2c1a0e;
+      --banner-border: #f28e2b;
+      --banner-text: #ffcc80;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    #graph-wrap {
+      flex: 1;
+      height: 100vh;
+      position: relative;
+      background: var(--bg);
+      overflow: hidden;
+    }
+    #graph {
+      width: 100%;
+      height: 100%;
+    }
+    #banner-container {
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      right: 320px;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .banner {
+      background: var(--banner-bg);
+      border: 1px solid var(--banner-border);
+      color: var(--banner-text);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+    .banner.hidden { display: none; }
+    #graph-controls {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      display: flex;
+      gap: 6px;
+      z-index: 40;
+      background: rgba(26, 26, 46, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 5px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .ctrl-btn {
+      background: #141426;
+      color: #ccc;
+      border: 1px solid #3a3a5e;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+    .ctrl-btn:hover {
+      background: #2a2a4e;
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .ctrl-btn.active {
+      background: #2a3b60;
+      color: #64B5F6;
+      border-color: #64B5F6;
+    }
+    .btn-group {
+      display: inline-flex;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #3a3a5e;
+    }
+    .btn-group .ctrl-btn {
+      border: none;
+      border-radius: 0;
+      border-right: 1px solid #3a3a5e;
+    }
+    .btn-group .ctrl-btn:last-child {
+      border-right: none;
+    }
+    #sidebar {
+      width: 320px;
+      background: var(--sidebar-bg);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 30;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+    }
+    #header {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--header-bg);
+    }
+    #header h1 {
+      font-size: 15px;
+      color: var(--accent);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    #stats {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    #search-wrap {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    #search {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid #3a3a5e;
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    #search:focus {
+      border-color: var(--accent);
+    }
+    #search-results {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      top: 48px;
+      background: var(--sidebar-bg);
+      border: 1px solid #3a3a5e;
+      border-radius: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+    }
+    .search-item {
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #252540;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .search-item:hover {
+      background: var(--hover-bg);
+      color: #fff;
+    }
+    #info-panel {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    #info-panel h3 {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+    .field {
+      margin-bottom: 6px;
+      font-size: 12px;
+      word-break: break-all;
+    }
+    .field b {
+      color: #ffffff;
+    }
+    .empty {
+      color: #666;
+      font-style: italic;
+    }
+    .neighbor-link {
+      display: block;
+      padding: 3px 6px;
+      margin: 3px 0;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      border-left: 3px solid #555;
+      background: var(--card-bg);
+    }
+    .neighbor-link:hover {
+      background: var(--hover-bg);
+    }
+    #legend-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+    }
+    #legend-wrap h3 {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+    #legend-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      color: #aaa;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .legend-item:hover {
+      background: var(--hover-bg);
+    }
+    .legend-item.dimmed {
+      opacity: 0.35;
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .legend-label {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .legend-count {
+      color: #777;
+      font-size: 11px;
+    }
+    #status-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 320px;
+      height: 24px;
+      background: #141426;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--text-muted);
+      z-index: 20;
+    }
+    #status-bar span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
   </style>
 </head>
 <body>
-  <div id="graph"></div>
+  <div id="graph-wrap">
+    <div id="banner-container">
+      <div id="pruning-banner" class="banner hidden">
+        <span>⚠ Showing <b id="pruned-vis">0</b> of <b id="pruned-total">0</b> nodes (pruned for performance &middot; limit: <span id="pruned-limit">1000</span>)</span>
+      </div>
+    </div>
+    <div id="graph-controls">
+      <button id="btn-toggle-physics" class="ctrl-btn active" title="Toggle physics (P)">⚡ Physics: ON</button>
+      <button id="btn-stabilize" class="ctrl-btn" title="Stabilize layout and freeze">❄ Freeze</button>
+      <div class="btn-group">
+        <button id="btn-layout-force" class="ctrl-btn active" title="Force-directed layout">Force</button>
+        <button id="btn-layout-hierarchical" class="ctrl-btn" title="Hierarchical layout (Left to Right)">Hierarchical</button>
+      </div>
+      <button id="btn-fit" class="ctrl-btn" title="Fit to screen (F)">⛶ Fit</button>
+    </div>
+    <div id="graph"></div>
+    <div id="status-bar">
+      <div id="status-left">
+        <span id="sb-nodes">Nodes: 0</span> &bull;
+        <span id="sb-edges">Edges: 0</span> &bull;
+        <span id="sb-communities">Communities: 0</span>
+      </div>
+      <div id="status-right">
+        <span id="sb-physics">Physics: Stabilizing...</span>
+      </div>
+    </div>
+  </div>
+
   <div id="sidebar">
     <div id="header">
       <h1>Graphify-Go Knowledge Graph</h1>
       <div id="stats">{{STATS}}</div>
     </div>
     <div id="search-wrap">
-      <input id="search" type="text" placeholder="Search symbols or files..." autocomplete="off">
+      <input id="search" type="text" placeholder="Search symbols or files... (/)" autocomplete="off">
       <div id="search-results"></div>
     </div>
     <div id="info-panel">
@@ -63,213 +357,356 @@
   <script id="nodes-data" type="application/json">{{NODES_JSON}}</script>
   <script id="edges-data" type="application/json">{{EDGES_JSON}}</script>
   <script id="legend-data" type="application/json">{{LEGEND_JSON}}</script>
+  <script id="meta-data" type="application/json">{{META_JSON}}</script>
 
   <script>
-    const RAW_NODES = JSON.parse(document.getElementById('nodes-data').textContent);
-    const RAW_EDGES = JSON.parse(document.getElementById('edges-data').textContent);
-    const LEGEND = JSON.parse(document.getElementById('legend-data').textContent);
+    const RAW_NODES = JSON.parse(document.getElementById('nodes-data').textContent || '[]');
+    const RAW_EDGES = JSON.parse(document.getElementById('edges-data').textContent || '[]');
+    const LEGEND = JSON.parse(document.getElementById('legend-data').textContent || '[]');
+    const META = JSON.parse(document.getElementById('meta-data').textContent || '{}');
 
     function esc(s) {
       return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    // Handle pruning banner
+    if (META && META.is_pruned) {
+      const banner = document.getElementById('pruning-banner');
+      document.getElementById('pruned-vis').textContent = META.visible_nodes;
+      document.getElementById('pruned-total').textContent = META.total_nodes;
+      document.getElementById('pruned-limit').textContent = META.max_nodes;
+      banner.classList.remove('hidden');
+    }
+
+    // Update status bar initial
+    document.getElementById('sb-nodes').textContent = `Nodes: ${RAW_NODES.length}` + (META.is_pruned ? ` (${META.total_nodes} total)` : '');
+    document.getElementById('sb-edges').textContent = `Edges: ${RAW_EDGES.length}`;
+    document.getElementById('sb-communities').textContent = `Communities: ${LEGEND.length}`;
+
     const container = document.getElementById('graph');
 
-    if (typeof vis === 'undefined') {
-      // Offline fallback: render via SVG/Canvas
-      container.innerHTML = `
-        <div style="padding: 40px; text-align: center; color: #888;">
-          <h2>Interactive Graph View</h2>
-          <p style="margin-top: 10px;">vis-network script could not be loaded from CDN.</p>
-          <p style="margin-top: 6px;">Connect to the internet or open locally with CDN access to view the interactive physics graph.</p>
-          <p style="margin-top: 20px; font-size: 13px; color: #64B5F6;">Total nodes: ${RAW_NODES.length} | Relationships: ${RAW_EDGES.length}</p>
-        </div>
-      `;
-    } else {
-      // Build vis datasets
-      const nodesDS = new vis.DataSet(RAW_NODES.map((n, i) => ({
-        id: n.id,
-        label: n.label,
-        color: n.color,
-        size: n.size || 12,
-        font: n.font || { size: 12, color: '#ffffff' },
-        title: n.title || n.label,
-        x: 35 * Math.sqrt(i + 1) * Math.cos(i * 2.4),
-        y: 35 * Math.sqrt(i + 1) * Math.sin(i * 2.4),
-        _community: n.community,
-        _community_name: n.community_name,
-        _source_file: n.source_file,
-        _file_type: n.file_type,
-        _degree: n.degree,
-      })));
+    // Build vis datasets with deterministic initial coordinates
+    const nodesDS = new vis.DataSet(RAW_NODES.map((n, i) => ({
+      id: n.id,
+      label: n.label,
+      color: n.color,
+      size: n.size || 12,
+      font: n.font || { size: 12, color: '#ffffff' },
+      title: n.title || n.label,
+      x: typeof n.x === 'number' ? n.x : 35 * Math.sqrt(i + 1) * Math.cos(i * 2.4),
+      y: typeof n.y === 'number' ? n.y : 35 * Math.sqrt(i + 1) * Math.sin(i * 2.4),
+      borderWidth: n.borderWidth || 1,
+      _community: n.community,
+      _community_name: n.community_name,
+      _source_file: n.source_file,
+      _file_type: n.file_type,
+      _degree: n.degree,
+      _is_god_node: n.is_god_node,
+      _line: n.line,
+    })));
 
-      const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({
-        id: i,
-        from: e.from,
-        to: e.to,
-        label: e.label || '',
-        title: e.title || '',
-        dashes: e.dashes || false,
-        width: e.width || 1,
-        color: e.color || { color: '#3a3a5e' },
-        arrows: { to: { enabled: true, scaleFactor: 0.5 } },
-      })));
+    const edgesDS = new vis.DataSet(RAW_EDGES.map((e, i) => ({
+      id: i,
+      from: e.from,
+      to: e.to,
+      label: e.label || '',
+      title: e.title || '',
+      dashes: e.dashes || false,
+      width: e.width || 1,
+      color: e.color || { color: '#3a3a5e' },
+      confidence: e.confidence,
+      arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+    })));
 
-      const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, {
-        physics: {
-          enabled: true,
-          solver: 'forceAtlas2Based',
-          forceAtlas2Based: {
-            gravitationalConstant: -70,
-            centralGravity: 0.008,
-            springLength: 100,
-            springConstant: 0.08,
-            damping: 0.45,
-            avoidOverlap: 0.8,
-          },
-          stabilization: { iterations: 150, fit: true },
+    let physicsEnabled = true;
+    let currentLayout = (META && META.layout === 'hierarchical') ? 'hierarchical' : 'force';
+
+    const networkOptions = {
+      physics: {
+        enabled: true,
+        solver: 'forceAtlas2Based',
+        forceAtlas2Based: {
+          gravitationalConstant: -70,
+          centralGravity: 0.008,
+          springLength: 100,
+          springConstant: 0.08,
+          damping: 0.45,
+          avoidOverlap: 0.8,
         },
-        interaction: {
-          hover: true,
-          tooltipDelay: 100,
-          hideEdgesOnDrag: true,
-          navigationButtons: false,
-          keyboard: false,
-        },
-        nodes: { shape: 'dot', borderWidth: 1.5 },
-        edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 2.5 },
-      });
+        stabilization: { iterations: 150, fit: true },
+      },
+      interaction: {
+        hover: true,
+        tooltipDelay: 100,
+        hideEdgesOnDrag: true,
+        navigationButtons: false,
+        keyboard: false,
+      },
+      nodes: { shape: 'dot', borderWidth: 1.5 },
+      edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 2.5 },
+    };
 
+    const network = new vis.Network(container, { nodes: nodesDS, edges: edgesDS }, networkOptions);
+
+    const btnPhysics = document.getElementById('btn-toggle-physics');
+    const btnStabilize = document.getElementById('btn-stabilize');
+    const btnForce = document.getElementById('btn-layout-force');
+    const btnHierarchical = document.getElementById('btn-layout-hierarchical');
+    const btnFit = document.getElementById('btn-fit');
+    const sbPhysics = document.getElementById('sb-physics');
+
+    function updatePhysicsUI(enabled) {
+      physicsEnabled = enabled;
+      if (enabled) {
+        btnPhysics.classList.add('active');
+        btnPhysics.textContent = '⚡ Physics: ON';
+        sbPhysics.textContent = 'Physics: Active';
+      } else {
+        btnPhysics.classList.remove('active');
+        btnPhysics.textContent = '⏸ Physics: OFF';
+        sbPhysics.textContent = 'Physics: Frozen';
+      }
+    }
+
+    // Auto-freeze after initial stabilization
+    network.once('stabilizationIterationsDone', () => {
+      network.setOptions({ physics: { enabled: false } });
+      updatePhysicsUI(false);
+    });
+
+    btnPhysics.addEventListener('click', () => {
+      physicsEnabled = !physicsEnabled;
+      network.setOptions({ physics: { enabled: physicsEnabled } });
+      updatePhysicsUI(physicsEnabled);
+    });
+
+    btnStabilize.addEventListener('click', () => {
+      sbPhysics.textContent = 'Physics: Stabilizing...';
+      network.setOptions({ physics: { enabled: true } });
+      network.stabilize(150);
       network.once('stabilizationIterationsDone', () => {
         network.setOptions({ physics: { enabled: false } });
+        updatePhysicsUI(false);
       });
+    });
 
-      function showInfo(nodeId) {
-        const n = nodesDS.get(nodeId);
-        if (!n) return;
-        const neighborIds = network.getConnectedNodes(nodeId);
-        const neighborItems = neighborIds.map(nid => {
-          const nb = nodesDS.get(nid);
-          const color = nb ? (nb.color.background || '#64B5F6') : '#555';
-          return `<span class="neighbor-link" style="border-left-color:${esc(color)}" data-nid="${esc(nid)}">${esc(nb ? nb.label : nid)}</span>`;
-        }).join('');
-
-        document.getElementById('info-content').innerHTML = `
-          <div class="field"><b>${esc(n.label)}</b></div>
-          <div class="field">Type: <code style="color:#64B5F6">${esc(n._file_type || 'unknown')}</code></div>
-          <div class="field">Community: ${esc(n._community_name || 'Community ' + n._community)}</div>
-          <div class="field">Source: <span style="font-size:11px;color:#aaa">${esc(n._source_file || '-')}</span></div>
-          <div class="field">Degree: ${n._degree}</div>
-          ${neighborIds.length ? `<div class="field" style="margin-top:10px;color:#aaa;font-size:11px">Connected Neighbors (${neighborIds.length})</div><div>${neighborItems}</div>` : ''}
-        `;
-      }
-
-      function focusNode(nodeId) {
-        network.focus(nodeId, { scale: 1.5, animation: true });
-        network.selectNodes([nodeId]);
-        showInfo(nodeId);
-      }
-
-      document.addEventListener('click', e => {
-        const el = e.target.closest('.neighbor-link');
-        if (el && el.dataset.nid !== undefined) {
-          focusNode(el.dataset.nid);
-        }
-      });
-
-      network.on('click', params => {
-        if (params.nodes.length > 0) {
-          showInfo(params.nodes[0]);
-        } else {
-          document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
-        }
-      });
-
-      // Search
-      const searchInput = document.getElementById('search');
-      const searchResults = document.getElementById('search-results');
-
-      searchInput.addEventListener('input', () => {
-        const q = searchInput.value.toLowerCase().trim();
-        searchResults.innerHTML = '';
-        if (!q) { searchResults.style.display = 'none'; return; }
-        const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)).slice(0, 15);
-        if (!matches.length) { searchResults.style.display = 'none'; return; }
-        searchResults.style.display = 'block';
-        matches.forEach(n => {
-          const el = document.createElement('div');
-          el.className = 'search-item';
-          el.textContent = n.label;
-          el.style.borderLeft = `3px solid ${n.color.background}`;
-          el.onclick = () => {
-            focusNode(n.id);
-            searchResults.style.display = 'none';
-            searchInput.value = '';
-          };
-          searchResults.appendChild(el);
-        });
-      });
-
-      document.addEventListener('click', e => {
-        if (!searchResults.contains(e.target) && e.target !== searchInput) {
-          searchResults.style.display = 'none';
-        }
-      });
-
-      // Legend & Communities
-      const hiddenCommunities = new Set();
-      const selectAllCb = document.getElementById('select-all-cb');
-
-      selectAllCb.addEventListener('change', () => {
-        const hide = !selectAllCb.checked;
-        document.querySelectorAll('.legend-item').forEach(item => {
-          hide ? item.classList.add('dimmed') : item.classList.remove('dimmed');
-        });
-        document.querySelectorAll('.legend-cb').forEach(cb => {
-          cb.checked = !hide;
-        });
-        LEGEND.forEach(c => {
-          if (hide) hiddenCommunities.add(c.cid); else hiddenCommunities.delete(c.cid);
-        });
-        const updates = RAW_NODES.map(n => ({ id: n.id, hidden: hide }));
-        nodesDS.update(updates);
-      });
-
-      const legendEl = document.getElementById('legend');
-      LEGEND.forEach(c => {
-        const item = document.createElement('div');
-        item.className = 'legend-item';
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'legend-cb';
-        cb.checked = true;
-        cb.addEventListener('change', (e) => {
-          e.stopPropagation();
-          if (cb.checked) {
-            hiddenCommunities.delete(c.cid);
-            item.classList.remove('dimmed');
-          } else {
-            hiddenCommunities.add(c.cid);
-            item.classList.add('dimmed');
+    function setLayout(mode) {
+      currentLayout = mode;
+      if (mode === 'hierarchical') {
+        btnHierarchical.classList.add('active');
+        btnForce.classList.remove('active');
+        network.setOptions({
+          layout: {
+            hierarchical: {
+              enabled: true,
+              direction: 'LR',
+              sortMethod: 'directed',
+              levelSeparation: 150,
+              nodeSpacing: 100,
+              treeSpacing: 180,
+            }
+          },
+          physics: {
+            enabled: true,
+            solver: 'hierarchicalRepulsion',
+            hierarchicalRepulsion: {
+              nodeDistance: 120,
+              springLength: 100,
+              springConstant: 0.01,
+              damping: 0.09
+            },
+            stabilization: { iterations: 100, fit: true }
           }
-          const updates = RAW_NODES
-            .filter(n => n.community === c.cid)
-            .map(n => ({ id: n.id, hidden: !cb.checked }));
-          nodesDS.update(updates);
-          selectAllCb.checked = hiddenCommunities.size === 0;
         });
-        item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
-          <span class="legend-label">${esc(c.label)}</span>
-          <span class="legend-count">${c.count}</span>`;
-        item.prepend(cb);
-        item.onclick = (e) => {
-          if (e.target === cb) return;
-          cb.checked = !cb.checked;
-          cb.dispatchEvent(new Event('change'));
-        };
-        legendEl.appendChild(item);
+      } else {
+        btnForce.classList.add('active');
+        btnHierarchical.classList.remove('active');
+        network.setOptions({
+          layout: { hierarchical: { enabled: false } },
+          physics: {
+            enabled: true,
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+              gravitationalConstant: -70,
+              centralGravity: 0.008,
+              springLength: 100,
+              springConstant: 0.08,
+              damping: 0.45,
+              avoidOverlap: 0.8,
+            },
+            stabilization: { iterations: 150, fit: true }
+          }
+        });
+      }
+      updatePhysicsUI(true);
+      network.once('stabilizationIterationsDone', () => {
+        network.setOptions({ physics: { enabled: false } });
+        updatePhysicsUI(false);
       });
     }
+
+    btnForce.addEventListener('click', () => setLayout('force'));
+    btnHierarchical.addEventListener('click', () => setLayout('hierarchical'));
+    btnFit.addEventListener('click', () => network.fit({ animation: { duration: 400, easingFunction: 'easeInOutQuad' } }));
+
+    // Apply layout if default was hierarchical
+    if (currentLayout === 'hierarchical') {
+      setLayout('hierarchical');
+    }
+
+    function showInfo(nodeId) {
+      const n = nodesDS.get(nodeId);
+      if (!n) return;
+      const neighborIds = network.getConnectedNodes(nodeId);
+      const neighborItems = neighborIds.map(nid => {
+        const nb = nodesDS.get(nid);
+        const color = nb ? (nb.color.background || '#64B5F6') : '#555';
+        return `<span class="neighbor-link" style="border-left-color:${esc(color)}" data-nid="${esc(nid)}">${esc(nb ? nb.label : nid)}</span>`;
+      }).join('');
+
+      let hubBadge = n._is_god_node ? `<span style="background:#FFD700;color:#000;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:bold;margin-left:6px">ARCHITECTURAL HUB</span>` : '';
+
+      document.getElementById('info-content').innerHTML = `
+        <div class="field"><b>${esc(n.label)}</b> ${hubBadge}</div>
+        <div class="field">Type: <code style="color:#64B5F6">${esc(n._file_type || 'unknown')}</code></div>
+        <div class="field">Community: ${esc(n._community_name || 'Community ' + n._community)}</div>
+        <div class="field">Source: <span style="font-size:11px;color:#aaa">${esc(n._source_file || '-')}${n._line ? ` (L${n._line})` : ''}</span></div>
+        <div class="field">Degree: ${n._degree}</div>
+        ${neighborIds.length ? `<div class="field" style="margin-top:10px;color:#aaa;font-size:11px">Connected Neighbors (${neighborIds.length})</div><div>${neighborItems}</div>` : ''}
+      `;
+    }
+
+    function focusNode(nodeId) {
+      network.focus(nodeId, { scale: 1.4, animation: { duration: 400, easingFunction: 'easeInOutQuad' } });
+      network.selectNodes([nodeId]);
+      showInfo(nodeId);
+    }
+
+    document.addEventListener('click', e => {
+      const el = e.target.closest('.neighbor-link');
+      if (el && el.dataset.nid !== undefined) {
+        focusNode(el.dataset.nid);
+      }
+    });
+
+    network.on('click', params => {
+      if (params.nodes.length > 0) {
+        showInfo(params.nodes[0]);
+      } else {
+        document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+      }
+    });
+
+    // Search
+    const searchInput = document.getElementById('search');
+    const searchResults = document.getElementById('search-results');
+
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase().trim();
+      searchResults.innerHTML = '';
+      if (!q) { searchResults.style.display = 'none'; return; }
+      const matches = RAW_NODES.filter(n => n.label.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)).slice(0, 15);
+      if (!matches.length) { searchResults.style.display = 'none'; return; }
+      searchResults.style.display = 'block';
+      matches.forEach(n => {
+        const el = document.createElement('div');
+        el.className = 'search-item';
+        el.textContent = n.label;
+        el.style.borderLeft = `3px solid ${n.color.background}`;
+        el.onclick = () => {
+          focusNode(n.id);
+          searchResults.style.display = 'none';
+          searchInput.value = '';
+        };
+        searchResults.appendChild(el);
+      });
+    });
+
+    document.addEventListener('click', e => {
+      if (!searchResults.contains(e.target) && e.target !== searchInput) {
+        searchResults.style.display = 'none';
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        if (e.key === 'Escape') {
+          e.target.blur();
+          searchResults.style.display = 'none';
+        }
+        return;
+      }
+      if (e.key === '/') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        network.fit({ animation: { duration: 400, easingFunction: 'easeInOutQuad' } });
+      } else if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        btnPhysics.click();
+      } else if (e.key === 'Escape') {
+        searchResults.style.display = 'none';
+        network.unselectAll();
+        document.getElementById('info-content').innerHTML = '<span class="empty">Click a node to inspect it</span>';
+      }
+    });
+
+    // Legend & Communities
+    const hiddenCommunities = new Set();
+    const selectAllCb = document.getElementById('select-all-cb');
+
+    selectAllCb.addEventListener('change', () => {
+      const hide = !selectAllCb.checked;
+      document.querySelectorAll('.legend-item').forEach(item => {
+        hide ? item.classList.add('dimmed') : item.classList.remove('dimmed');
+      });
+      document.querySelectorAll('.legend-cb').forEach(cb => {
+        cb.checked = !hide;
+      });
+      LEGEND.forEach(c => {
+        if (hide) hiddenCommunities.add(c.cid); else hiddenCommunities.delete(c.cid);
+      });
+      const updates = RAW_NODES.map(n => ({ id: n.id, hidden: hide }));
+      nodesDS.update(updates);
+    });
+
+    const legendEl = document.getElementById('legend');
+    LEGEND.forEach(c => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'legend-cb';
+      cb.checked = true;
+      cb.addEventListener('change', (e) => {
+        e.stopPropagation();
+        if (cb.checked) {
+          hiddenCommunities.delete(c.cid);
+          item.classList.remove('dimmed');
+        } else {
+          hiddenCommunities.add(c.cid);
+          item.classList.add('dimmed');
+        }
+        const updates = RAW_NODES
+          .filter(n => n.community === c.cid)
+          .map(n => ({ id: n.id, hidden: !cb.checked }));
+        nodesDS.update(updates);
+        selectAllCb.checked = hiddenCommunities.size === 0;
+      });
+      item.innerHTML = `<div class="legend-dot" style="background:${c.color}"></div>
+        <span class="legend-label">${esc(c.label)}</span>
+        <span class="legend-count">${c.count}</span>`;
+      item.prepend(cb);
+      item.onclick = (e) => {
+        if (e.target === cb) return;
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      };
+      legendEl.appendChild(item);
+    });
   </script>
 </body>
 </html>

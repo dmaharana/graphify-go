@@ -13,10 +13,13 @@ import (
 )
 
 var (
-	outDir     string
-	isUpdate   bool
-	skipViz    bool
-	skipReport bool
+	outDir      string
+	isUpdate    bool
+	skipViz     bool
+	skipReport  bool
+	vizMaxNodes int
+	vizLayout   string
+	vizTheme    string
 )
 
 var scanCmd = &cobra.Command{
@@ -99,7 +102,12 @@ The scanner performs:
 		// Generate graph.html
 		if !skipViz {
 			htmlFile := filepath.Join(outDir, "graph.html")
-			_ = visualizer.GenerateHTML(g, htmlFile)
+			cfg := visualizer.Config{
+				MaxNodes: vizMaxNodes,
+				Layout:   vizLayout,
+				Theme:    vizTheme,
+			}
+			_ = visualizer.GenerateHTMLWithConfig(g, htmlFile, cfg)
 		}
 
 		fmt.Printf("Scan complete. Extracted %d nodes, %d relationships in %d communities.\n",
@@ -113,5 +121,8 @@ func init() {
 	scanCmd.Flags().BoolVarP(&isUpdate, "update", "u", false, "Incremental scan using manifest cache")
 	scanCmd.Flags().BoolVar(&skipViz, "no-viz", false, "Skip generating interactive graph.html")
 	scanCmd.Flags().BoolVar(&skipReport, "no-report", false, "Skip generating GRAPH_REPORT.md")
+	scanCmd.Flags().IntVar(&vizMaxNodes, "viz-max-nodes", 1000, "Maximum number of nodes in interactive visualization before pruning")
+	scanCmd.Flags().StringVar(&vizLayout, "viz-layout", "force", "Default visualization layout: force or hierarchical")
+	scanCmd.Flags().StringVar(&vizTheme, "viz-theme", "dark", "Default visualization theme: dark, light, or auto")
 	rootCmd.AddCommand(scanCmd)
 }
