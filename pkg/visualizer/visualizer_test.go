@@ -108,11 +108,34 @@ func TestSeedNodePositions(t *testing.T) {
 	}
 }
 
+func TestShapeForNodeType(t *testing.T) {
+	tests := []struct {
+		nodeType graph.NodeType
+		expected string
+	}{
+		{graph.FunctionNode, "dot"},
+		{graph.MethodNode, "diamond"},
+		{graph.StructNode, "square"},
+		{graph.InterfaceNode, "triangle"},
+		{graph.PackageNode, "star"},
+		{graph.FileNode, "hexagon"},
+	}
+
+	for _, tc := range tests {
+		got := ShapeForNodeType(tc.nodeType)
+		if got != tc.expected {
+			t.Errorf("ShapeForNodeType(%s) = %s; want %s", tc.nodeType, got, tc.expected)
+		}
+	}
+}
+
 func TestGenerateHTML(t *testing.T) {
 	g := graph.NewGraph()
 	g.AddNode(graph.Node{ID: "main.go", Type: graph.FileNode, Name: "main.go", Community: 1})
 	g.AddNode(graph.Node{ID: "main", Type: graph.FunctionNode, Name: "main", Community: 1})
+	g.AddNode(graph.Node{ID: "Service", Type: graph.StructNode, Name: "Service", Community: 1})
 	g.AddEdge("main.go", "main", graph.EdgeContains, graph.ConfidenceExtracted, 1, "main.go")
+	g.AddEdge("main", "Service", graph.EdgeReferences, graph.ConfidenceInferred, 10, "main.go")
 
 	tmpDir := t.TempDir()
 	outPath := filepath.Join(tmpDir, "graph.html")
@@ -144,5 +167,8 @@ func TestGenerateHTML(t *testing.T) {
 	}
 	if !strings.Contains(htmlStr, "meta-data") {
 		t.Errorf("expected metadata script tag in HTML")
+	}
+	if !strings.Contains(htmlStr, "square") {
+		t.Errorf("expected struct shape square in HTML data")
 	}
 }

@@ -52,12 +52,15 @@ type VisNode struct {
 	SourceFile    string            `json:"source_file"`
 	FileType      string            `json:"file_type"`
 	Degree        int               `json:"degree"`
+	InDegree      int               `json:"in_degree"`
+	OutDegree     int               `json:"out_degree"`
 	X             float64           `json:"x"`
 	Y             float64           `json:"y"`
 	IsGodNode     bool              `json:"is_god_node,omitempty"`
 	Line          int               `json:"line,omitempty"`
 	Shape         string            `json:"shape,omitempty"`
 	BorderWidth   int               `json:"borderWidth,omitempty"`
+	Shadow        map[string]any    `json:"shadow,omitempty"`
 }
 
 type VisEdge struct {
@@ -96,6 +99,26 @@ type PruneResult struct {
 	TotalEdges  int
 	PrunedNodes int
 	IsPruned    bool
+}
+
+// ShapeForNodeType returns a semantic vis-network shape for a given NodeType.
+func ShapeForNodeType(t graph.NodeType) string {
+	switch t {
+	case graph.FunctionNode:
+		return "dot"
+	case graph.MethodNode:
+		return "diamond"
+	case graph.StructNode:
+		return "square"
+	case graph.InterfaceNode:
+		return "triangle"
+	case graph.PackageNode:
+		return "star"
+	case graph.FileNode:
+		return "hexagon"
+	default:
+		return "dot"
+	}
 }
 
 // PruneGraph retains at least one representative from every community,
@@ -310,6 +333,8 @@ func GenerateHTMLWithConfig(g *graph.Graph, outputPath string, cfg Config) error
 	renderEdges := pruneRes.Edges
 
 	nodeSet := make(map[string]bool, len(renderNodes))
+	inDegreeMap := make(map[string]int, len(renderNodes))
+	outDegreeMap := make(map[string]int, len(renderNodes))
 	degreeMap := make(map[string]int, len(renderNodes))
 
 	for _, n := range renderNodes {
@@ -318,15 +343,20 @@ func GenerateHTMLWithConfig(g *graph.Graph, outputPath string, cfg Config) error
 
 	for _, e := range renderEdges {
 		if nodeSet[e.From] && nodeSet[e.To] {
+			outDegreeMap[e.From]++
+			inDegreeMap[e.To]++
 			degreeMap[e.From]++
 			degreeMap[e.To]++
 		}
 	}
 
-	maxDeg := 1
-	for _, deg := range degreeMap {
-		if deg > maxDeg {
-			maxDeg = deg
+	maxMetric := 1.0
+	for _, n := range renderNodes {
+		inDeg := inDegreeMap[n.ID]
+		outDeg := outDegreeMap[n.ID]
+		metric := math.Max(float64(inDeg), float64(outDeg)) + 0.5*math.Min(float64(inDeg), float64(outDeg))
+		if metric > maxMetric {
+			maxMetric = metric
 		}
 	}
 
@@ -378,27 +408,41 @@ func GenerateHTMLWithConfig(g *graph.Graph, outputPath string, cfg Config) error
 		}
 		color := CommunityColors[cid%len(CommunityColors)]
 		deg := degreeMap[n.ID]
+		inDeg := inDegreeMap[n.ID]
+		outDeg := outDegreeMap[n.ID]
 
-		size := 12.0 + 28.0*math.Sqrt(float64(deg)/float64(maxDeg))
+		// Size calculation using balanced in/out metric
+		metric := math.Max(float64(inDeg), float64(outDeg)) + 0.5*math.Min(float64(inDeg), float64(outDeg))
+		size := 12.0 + 26.0*math.Sqrt(metric/maxMetric)
 		if n.Type == graph.FileNode {
 			size = 10.0
 		}
-		if godMap[n.ID] && size < 24.0 {
+		isGod := godMap[n.ID]
+		if isGod && size < 24.0 {
 			size = 24.0
 		}
 
 		fontSize := 11
-		if deg < maxDeg/4 && n.Type != graph.FileNode {
+		if deg < int(maxMetric/4) && n.Type != graph.FileNode && !isGod {
 			fontSize = 0 // Hide small node labels until zoomed
 		}
 
 		borderColor := color
 		borderWidth := 1
-		isGod := godMap[n.ID]
+		var shadow map[string]any
 		if isGod {
 			borderColor = "#FFD700"
-			borderWidth = 3
+			borderWidth = 4
+			shadow = map[string]any{
+				"enabled": true,
+				"color":   "rgba(255, 215, 0, 0.6)",
+				"size":    15,
+				"x":       0,
+				"y":       0,
+			}
 		}
+
+		shape := ShapeForNodeType(n.Type)
 
 		visNodes = append(visNodes, VisNode{
 			ID:    n.ID,
@@ -413,15 +457,19 @@ func GenerateHTMLWithConfig(g *graph.Graph, outputPath string, cfg Config) error
 				"size":  fontSize,
 				"color": "#ffffff",
 			},
-			Title:         fmt.Sprintf("%s (%s)\n%s", n.Name, n.Type, n.FilePath),
+			Title:         fmt.Sprintf("%s (%s)\n%s\nDegree: %d (in: %d, out: %d)", n.Name, n.Type, n.FilePath, deg, inDeg, outDeg),
 			Community:     cid,
 			CommunityName: commNames[cid],
 			SourceFile:    n.FilePath,
 			FileType:      string(n.Type),
 			Degree:        deg,
+			InDegree:      inDeg,
+			OutDegree:     outDeg,
 			IsGodNode:     isGod,
 			Line:          n.Line,
+			Shape:         shape,
 			BorderWidth:   borderWidth,
+			Shadow:        shadow,
 		})
 	}
 
@@ -436,31 +484,33 @@ func GenerateHTMLWithConfig(g *graph.Graph, outputPath string, cfg Config) error
 
 		var dashes any = false
 		width := 1
-		opacity := 0.4
-		edgeColor := "#3a3a5e"
+		opacity := 0.45
+		edgeColor := "#5c6b84"
 
 		switch e.Confidence {
 		case graph.ConfidenceExtracted:
 			width = 2
-			opacity = 0.75
+			opacity = 0.8
+			edgeColor = "#64B5F6"
 		case graph.ConfidenceInferred:
 			dashes = []int{5, 5}
 			width = 1
 			opacity = 0.5
+			edgeColor = "#9E9E9E"
 		case graph.ConfidenceAmbiguous:
 			dashes = []int{2, 4}
-			width = 1
-			opacity = 0.65
-			edgeColor = "#E5A93C"
+			width = 2
+			opacity = 0.75
+			edgeColor = "#FFB74D"
 		default:
-			dashes = true
+			dashes = false
 		}
 
 		visEdges = append(visEdges, VisEdge{
 			From:       e.From,
 			To:         e.To,
 			Label:      string(e.Type),
-			Title:      fmt.Sprintf("%s -> %s\nType: %s\nConfidence: %s", e.From, e.To, e.Type, e.Confidence),
+			Title:      fmt.Sprintf("%s -> %s\nRelation: %s\nConfidence: %s", e.From, e.To, e.Type, e.Confidence),
 			Dashes:     dashes,
 			Width:      width,
 			Color:      map[string]any{"color": edgeColor, "opacity": opacity},

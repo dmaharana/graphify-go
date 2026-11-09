@@ -393,14 +393,19 @@
       size: n.size || 12,
       font: n.font || { size: 12, color: '#ffffff' },
       title: n.title || n.label,
+      shape: n.shape || 'dot',
+      shadow: n.shadow || false,
+      borderWidth: n.borderWidth || 1,
+      borderWidthSelected: n.is_god_node ? 6 : 3,
       x: typeof n.x === 'number' ? n.x : 35 * Math.sqrt(i + 1) * Math.cos(i * 2.4),
       y: typeof n.y === 'number' ? n.y : 35 * Math.sqrt(i + 1) * Math.sin(i * 2.4),
-      borderWidth: n.borderWidth || 1,
       _community: n.community,
       _community_name: n.community_name,
       _source_file: n.source_file,
       _file_type: n.file_type,
       _degree: n.degree,
+      _in_degree: n.in_degree,
+      _out_degree: n.out_degree,
       _is_god_node: n.is_god_node,
       _line: n.line,
     })));
@@ -411,11 +416,16 @@
       to: e.to,
       label: e.label || '',
       title: e.title || '',
-      dashes: e.dashes || false,
+      dashes: Array.isArray(e.dashes) ? e.dashes : (e.dashes === true ? [5, 5] : false),
       width: e.width || 1,
-      color: e.color || { color: '#3a3a5e' },
+      color: {
+        color: e.color && e.color.color ? e.color.color : '#5c6b84',
+        opacity: e.color && typeof e.color.opacity === 'number' ? e.color.opacity : 0.5,
+        highlight: '#64B5F6',
+        hover: '#ffffff'
+      },
       confidence: e.confidence,
-      arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+      arrows: { to: { enabled: true, scaleFactor: 0.6 } },
     })));
 
     let physicsEnabled = true;
@@ -442,7 +452,7 @@
         navigationButtons: false,
         keyboard: false,
       },
-      nodes: { shape: 'dot', borderWidth: 1.5 },
+      nodes: { borderWidth: 1.5 },
       edges: { smooth: { type: 'continuous', roundness: 0.2 }, selectionWidth: 2.5 },
     };
 
@@ -564,14 +574,24 @@
         return `<span class="neighbor-link" style="border-left-color:${esc(color)}" data-nid="${esc(nid)}">${esc(nb ? nb.label : nid)}</span>`;
       }).join('');
 
-      let hubBadge = n._is_god_node ? `<span style="background:#FFD700;color:#000;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:bold;margin-left:6px">ARCHITECTURAL HUB</span>` : '';
+      const typeIcons = {
+        function: '● function',
+        method: '◆ method',
+        struct: '■ struct',
+        interface: '▲ interface',
+        star: '★ package',
+        package: '★ package',
+        file: '⬡ file',
+      };
+      const typeLabel = typeIcons[n._file_type] || n._file_type || 'unknown';
+      let hubBadge = n._is_god_node ? `<span style="background:#FFD700;color:#000;font-size:10px;padding:2px 6px;border-radius:3px;font-weight:bold;margin-left:6px">★ GOD NODE</span>` : '';
 
       document.getElementById('info-content').innerHTML = `
         <div class="field"><b>${esc(n.label)}</b> ${hubBadge}</div>
-        <div class="field">Type: <code style="color:#64B5F6">${esc(n._file_type || 'unknown')}</code></div>
+        <div class="field">Type: <code style="color:#64B5F6">${esc(typeLabel)}</code></div>
         <div class="field">Community: ${esc(n._community_name || 'Community ' + n._community)}</div>
         <div class="field">Source: <span style="font-size:11px;color:#aaa">${esc(n._source_file || '-')}${n._line ? ` (L${n._line})` : ''}</span></div>
-        <div class="field">Degree: ${n._degree}</div>
+        <div class="field">Degree: <b>${n._degree}</b> <span style="font-size:11px;color:#aaa">(In: ${n._in_degree || 0}, Out: ${n._out_degree || 0})</span></div>
         ${neighborIds.length ? `<div class="field" style="margin-top:10px;color:#aaa;font-size:11px">Connected Neighbors (${neighborIds.length})</div><div>${neighborItems}</div>` : ''}
       `;
     }
